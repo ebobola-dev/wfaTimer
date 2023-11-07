@@ -17,6 +17,7 @@ namespace wfaTimer
             timer.Interval = 16;
             timer.Tick += Timer_Tick;
 
+            //? Заполняем комбобоксы вариантами
             for (int i = 0; i < 100; i++) {
                 comboHours.Items.Add($"{i}");
                 if (i < 60) {
@@ -25,10 +26,12 @@ namespace wfaTimer
                 }
             }
 
-            fillComboBoxes();
+            //? Выбираем в комбобоксах значения
+            calculateDefaultSeconds();
         }
 
-        private void fillComboBoxes() {
+        //? Высчитываем секунды -> часы, минуты и секунды для начальных значений комбобоксов
+        private void calculateDefaultSeconds() {
             int tempTimerValue = timerValue;
             int hours = tempTimerValue / 3600;
             if (hours > 99) hours = 99;
@@ -41,6 +44,8 @@ namespace wfaTimer
             comboSeconds.SelectedIndex = seconds;
         }
 
+        //? Вызываем каждый раз при изменении значений в каком-нибудь комбобоксе
+        //? Высчитываем, часы, минуты и секунды -> секунды
         private void calculateComboBoxesData() {
             int hours = comboHours.SelectedIndex;
             int minutes = comboMinutes.SelectedIndex;
@@ -49,6 +54,8 @@ namespace wfaTimer
             if (minutes < 0) minutes = 0;
             if (seconds < 0) seconds = 0;
             timerValue = seconds + minutes * 60 + hours * 3600;
+
+            //? Подстраиваем ui под новые значения
             progressBar.Maximum = timerValue * 1000;
             progressBar.Value = 0;
             timerLabel.Text = "00:00:00.00";
@@ -56,16 +63,21 @@ namespace wfaTimer
             reverseProgressBar.Value = timerValue * 1000;
             reverseTimerLabel.Text = TimeSpan.FromSeconds(timerValue).ToString(@"hh\:mm\:ss\.ff");
             percentLabel.Text = "0%";
+            //? Если 0 секунд, то таймер запустить нельзя
             startButton.Enabled = timerValue != 0;
         }
 
+        //? Отключение/включение комбобоксов (они недоступны пока таймер работает или стоит на паузе)
         private void changeComboBoxesEnabled(bool enabled) {
             comboHours.Enabled = enabled;
             comboMinutes.Enabled = enabled;
             comboSeconds.Enabled = enabled;
         }
 
+        //? Запуск таймера (или снятие с паузы)
         private void startTimer() {
+
+            //? Если в прошлый раз таймер отсчитал до конца, перед след запуском его надо перезапустить полностью (функ. resetTimer), иначе все наъуй сломается
             if (wasFinished) {
                 resetTimer();
                 wasFinished = false;
@@ -73,15 +85,18 @@ namespace wfaTimer
             startButton.Text = "Пауза";
             startTime = startTime + (DateTime.Now - pauseTime);
             timer.Start();
+            //? Выключаем комбобоксы
             changeComboBoxesEnabled(false);
         }
 
+        //? Пауза таймера
         private void pauseTimer() {
             startButton.Text = "Продолжить";
             pauseTime = DateTime.Now;
             timer.Stop();
         }
 
+        //? Сброс таймера (все приводим в начальные значения)
         private void resetTimer() {
             timer.Stop();
             startButton.Text = "Старт";
@@ -92,22 +107,29 @@ namespace wfaTimer
             reverseTimerLabel.Text = TimeSpan.FromSeconds(timerValue).ToString(@"hh\:mm\:ss\.ff");
             startTime = DateTime.Now;
             pauseTime = DateTime.Now;
+            //? Включаем комбобоксы
             changeComboBoxesEnabled(true);
         }
 
+        //? Вызывается, когда таймер успешно досчитал до конца
         private void onFinishTimer() {
             wasFinished = true;
             timer.Stop();
             startButton.Text = "Старт";
+            //? Включаем комбобоксы
             changeComboBoxesEnabled(true);
         }
 
         private void Timer_Tick(object? sender, EventArgs e) {
-            var passedTime = DateTime.Now - startTime;
-            var leftTime = TimeSpan.FromSeconds(timerValue) - passedTime;
-            var percentValue = (int)(passedTime.TotalSeconds / timerValue * 100);
+            var passedTime = DateTime.Now - startTime; //? Сколько прошло времени 
+            var leftTime = TimeSpan.FromSeconds(timerValue) - passedTime; //? Сколько осталось времени
+            var percentValue = (int)(passedTime.TotalSeconds / timerValue * 100); //? Сколько прошло времени в процентах
+
+            //? Эти значения каким-то образом чучуть выходят за границы дозволенного, поэтому обрезаем
             if (percentValue > 100) percentValue = 100;
             if (leftTime.TotalMilliseconds < 0) leftTime = TimeSpan.FromSeconds(0);
+
+            //? Если досчитали до конца
             if (passedTime.TotalSeconds > timerValue) {
                 onFinishTimer();
                 passedTime = TimeSpan.FromSeconds(timerValue);
